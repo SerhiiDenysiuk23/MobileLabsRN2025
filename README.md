@@ -15,9 +15,7 @@ npm run web      # для запуску у браузері
 # Скріншоти:
 
 
-## новини:
-![alt text](screenshots/screen1.png)
-## галерея:
-![alt text](screenshots/screen2.png)
-## форма:
-![alt text](screenshots/screen3.png)
+## Головна сторінка:
+![alt text](screenshots/screen1.jpg)
+## Профіль:
+![alt text](screenshots/screen2.jpg)
