@@ -1,83 +1,162 @@
-import {Image, StyleSheet, View} from 'react-native';
-
-import ParallaxScrollView from '@/components/ParallaxScrollView';
+import React, {useEffect, useState} from 'react';
+import {Alert, Button, FlatList, StyleSheet} from 'react-native';
 import {ThemedText} from '@/components/ThemedText';
 import {ThemedView} from '@/components/ThemedView';
+import AppInput from "@/components/AppInput";
+import {Task} from "@/types/task";
+import {AppSelectDate} from "@/components/AppDatePicker";
+import {loadTasks, saveTasks} from "@/utils/storage";
+import {send, cancel} from "@/utils/onesignal";
+import {TaskItem} from "@/components/TaskItem";
 
-const newsData = [
-  {
-    title: 'Breaking News',
-    image: "https://picsum.photos/320/220",
-    summary: 'This is a short summary of the breaking news.',
-  },
-  {
-    title: 'Tech Update',
-    image: "https://picsum.photos/321/221",
-    summary: 'Latest advancements in technology you should know.',
-  },
-  {
-    title: 'Sports Highlights',
-    image: "https://picsum.photos/323/223",
-    summary: 'Top moments from recent sports events.',
-  },
-];
 
 export default function HomeScreen() {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [reminderTime, setReminderTime] = useState(new Date());
+
+  useEffect(() => {
+    async function fetchTasks() {
+      try {
+        const savedTasks = await loadTasks();
+        if (savedTasks) {
+          setTasks(savedTasks);
+        }
+      } catch (error) {
+        console.error('Error loading tasks:', error);
+        Alert.alert('Error', 'Failed to load tasks');
+      }
+    }
+
+    void fetchTasks();
+  }, []);
+
+  async function scheduleNotification(task: Task) {
+    try {
+      const {data} = await send(task.title, task.description, task.reminderTime);
+      return data?.id;
+    } catch (error) {
+      console.error('Error scheduling notification:', error);
+      return null;
+    }
+  }
+
+  async function cancelNotification(notificationId: string) {
+    try {
+      await cancel(notificationId);
+    } catch (error) {
+      console.error('Error canceling notification:', error);
+    }
+  }
+
+  async function addTask() {
+    if (!title.trim()) {
+      Alert.alert('Error', 'Please enter a task title');
+      return;
+    }
+
+    const newTask: Task = {
+      id: Date.now().toString(),
+      title,
+      description,
+      reminderTime,
+    };
+
+    const notificationId = await scheduleNotification(newTask);
+    if (notificationId) {
+      newTask.notificationId = notificationId;
+    }
+
+    const updatedTasks = [...tasks, newTask];
+    setTasks(updatedTasks);
+    await saveTasks(updatedTasks);
+
+    setTitle('');
+    setDescription('');
+    setReminderTime(new Date());
+  }
+
+  async function deleteTask(id: string) {
+    const taskToDelete = tasks.find(task => task.id === id);
+
+    if (taskToDelete?.notificationId) {
+      await cancelNotification(taskToDelete.notificationId);
+    }
+
+    const updatedTasks = tasks.filter(task => task.id !== id);
+    setTasks(updatedTasks);
+    await saveTasks(updatedTasks);
+  }
+
   return (
-    <ParallaxScrollView headerBackgroundColor={{light: '#A1CEDC', dark: '#1D3D47'}} headerImage={<Image
-      source={require('@/assets/images/partial-react-logo.png')}
-      style={styles.reactLogo}
-    />}>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">News</ThemedText>
+    <ThemedView style={styles.container}>
+      <ThemedText type="subtitle" style={styles.header}>📝To-Do Reminder</ThemedText>
+
+      <ThemedView style={styles.form}>
+        <AppInput
+          placeholder="Task Title"
+          value={title}
+          onChangeText={setTitle}
+        />
+
+        <AppInput
+          placeholder="Description (optional)"
+          value={description}
+          onChangeText={setDescription}
+          multiline
+        />
+
+        <AppSelectDate
+          value={reminderTime}
+          onChange={(date) => {
+            if (date) setReminderTime(date);
+          }}
+        />
+
+        <Button
+          title="Create"
+          onPress={() => addTask()}
+        />
       </ThemedView>
-      <ThemedView style={styles.newsContainer}>
-        {newsData.map((news, index) => (
-          <View key={index} style={styles.newsItem}>
-            <Image src={news.image} style={styles.newsImage}/>
-            <View>
-              <ThemedText style={styles.textContainer} type="subtitle">{news.title}</ThemedText>
-              <ThemedText style={styles.textContainer}>{news.summary}</ThemedText>
-            </View>
-          </View>
-        ))}
-      </ThemedView>
-    </ParallaxScrollView>
+
+      <FlatList
+        data={tasks}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <TaskItem task={item} onDelete={deleteTask} />
+        )}
+        style={styles.taskList}
+        ListEmptyComponent={
+          <ThemedText style={styles.emptyText}>No tasks yet. Add one above!</ThemedText>
+        }
+      />
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    alignItems: 'center',
-    marginBottom: 16,
+  container: {
+    flex: 1,
+    padding: 16,
   },
-  newsContainer: {
-    flexDirection: 'column',
-    gap: 16
+  header: {
+    marginTop: 60,
+    marginBottom: 20,
+    textAlign: 'center',
   },
-  newsItem: {
-    backgroundColor: 'rgba(220,220,222,0.65)',
-    borderRadius: 8,
-    flexDirection: "row",
-    padding: 10,
-    gap: 10
+  form: {
+    marginBottom: 20,
+    padding: 16,
+    backgroundColor: '#f9f9f9',
+    borderRadius: 10,
   },
-  newsImage: {
-    height: 80,
-    borderRadius: 8,
-    marginBottom: 8,
-    objectFit: 'cover',
-    aspectRatio: 1
+  taskList: {
+    flex: 1,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  emptyText: {
+    textAlign: 'center',
+    marginTop: 20,
+    color: '#888',
   },
-  textContainer: {
-    flexWrap: "wrap",
-    maxWidth: "92%"
-  }
 });

@@ -5,6 +5,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
+import {init} from "@/utils/onesignal"
 
 import { useColorScheme } from '@/hooks/useColorScheme';
 
@@ -22,6 +23,10 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [loaded]);
+
+  useEffect(() => {
+    init()
+  }, []);
 
   if (!loaded) {
     return null;

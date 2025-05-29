@@ -1,4 +1,4 @@
-# Лаборатона робота №1
+# Лаборатона робота №4
 
 Виконав Денисюк Сергій Михайлович | Група ІПЗ-21-4
 
@@ -15,9 +15,11 @@ npm run web      # для запуску у браузері
 # Скріншоти:
 
 
-## новини:
+## Головний екран:
 ![alt text](screenshots/screen1.png)
-## галерея:
+## Вибір дати та часу нагадування:
 ![alt text](screenshots/screen2.png)
-## форма:
+## Push-повідомлення з нагадуванням:
 ![alt text](screenshots/screen3.png)
+## Push-повідомлення з OneSignal Dashboard:
+![alt text](screenshots/screen4.png)
