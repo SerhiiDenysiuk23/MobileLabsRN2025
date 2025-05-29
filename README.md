@@ -1,4 +1,4 @@
-# Лаборатона робота №1
+# Лаборатона робота №5
 
 Виконав Денисюк Сергій Михайлович | Група ІПЗ-21-4
 
@@ -15,9 +15,13 @@ npm run web      # для запуску у браузері
 # Скріншоти:
 
 
-## новини:
-![alt text](screenshots/screen1.png)
-## галерея:
-![alt text](screenshots/screen2.png)
-## форма:
-![alt text](screenshots/screen3.png)
+## Головна сторінка:
+![alt text](screenshots/Screen1.png)
+## Створення файлу:
+![alt text](screenshots/Screen2.png)
+## Видалення файлу:
+![alt text](screenshots/Screen3.png)
+## Детальна інформація про файл:
+![alt text](screenshots/Screen4.png)
+## Редагування файлу:
+![alt text](screenshots/Screen5.png)

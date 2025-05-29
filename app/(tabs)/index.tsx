@@ -1,83 +1,117 @@
-import {Image, StyleSheet, View} from 'react-native';
-
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import {ThemedText} from '@/components/ThemedText';
+import React, {useState} from 'react';
+import {SafeAreaView, StyleSheet, ActivityIndicator, View, Text} from 'react-native';
 import {ThemedView} from '@/components/ThemedView';
-
-const newsData = [
-  {
-    title: 'Breaking News',
-    image: "https://picsum.photos/320/220",
-    summary: 'This is a short summary of the breaking news.',
-  },
-  {
-    title: 'Tech Update',
-    image: "https://picsum.photos/321/221",
-    summary: 'Latest advancements in technology you should know.',
-  },
-  {
-    title: 'Sports Highlights',
-    image: "https://picsum.photos/323/223",
-    summary: 'Top moments from recent sports events.',
-  },
-];
+import {FileList} from '@/components/FileList';
+import {PathDisplay} from '@/components/PathDisplay';
+import {NavigationControls} from '@/components/NavigationControls';
+import {CreateFolderDialog} from '@/components/CreateFolderDialog';
+import {CreateFileDialog} from '@/components/CreateFileDialog';
+import {TextFileViewer} from '@/components/TextFileViewer';
+import {DeleteConfirmationDialog} from '@/components/DeleteConfirmationDialog';
+import {FileDetailsDialog} from '@/components/FileDetailsDialog';
+import {MemoryStats} from '@/components/MemoryStats';
+import {useFileSystem} from '@/hooks/useFileSystem';
+import {fileSystemService} from '@/services/FileSystemService';
+import {FileSystemEntry} from '@/services/FileSystemService';
 
 export default function HomeScreen() {
+  const {currentPath, entries, loading, error, basePath, canGoUp, goUp, refresh, load} = useFileSystem();
+
+  const [dialogs, setDialogs] = useState({folder: false, file: false, viewer: false, delete: false, details: false});
+  const [activeEntry, setActiveEntry] = useState<FileSystemEntry | { path: string; name: string } | null>(null);
+
+  const toggle = (key: keyof typeof dialogs, entry: any = null) => {
+    setActiveEntry(entry);
+    setDialogs(prev => ({...prev, [key]: !prev[key]}));
+  };
+
+  const onEntryPress = (entry: FileSystemEntry) => {
+    if (entry.isDirectory) load(entry.uri);
+    else if (entry.name.endsWith('.txt')) {
+      setActiveEntry({path: entry.uri, name: entry.name});
+      setDialogs(prev => ({...prev, viewer: true}));
+    }
+  };
+
   return (
-    <ParallaxScrollView headerBackgroundColor={{light: '#A1CEDC', dark: '#1D3D47'}} headerImage={<Image
-      source={require('@/assets/images/partial-react-logo.png')}
-      style={styles.reactLogo}
-    />}>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">News</ThemedText>
+    <SafeAreaView style={styles.container}>
+      <ThemedView style={styles.content}>
+        <MemoryStats/>
+        <PathDisplay currentPath={currentPath} basePath={basePath}/>
+        <NavigationControls
+          canGoUp={canGoUp}
+          onGoUp={goUp}
+          onRefresh={refresh}
+          onCreateFolder={() => toggle('folder')}
+          onCreateFile={() => toggle('file')}
+        />
+
+        {loading ? (
+          <View style={styles.loading}><ActivityIndicator size="large"/></View>
+        ) : error ? (
+          <Text style={styles.error}>Error: {error.message}</Text>
+        ) : (
+          <FileList
+            entries={entries}
+            onEntryPress={onEntryPress}
+            onDeletePress={entry => toggle('delete', entry)}
+            onInfoPress={entry => toggle('details', entry)}
+          />
+        )}
       </ThemedView>
-      <ThemedView style={styles.newsContainer}>
-        {newsData.map((news, index) => (
-          <View key={index} style={styles.newsItem}>
-            <Image src={news.image} style={styles.newsImage}/>
-            <View>
-              <ThemedText style={styles.textContainer} type="subtitle">{news.title}</ThemedText>
-              <ThemedText style={styles.textContainer}>{news.summary}</ThemedText>
-            </View>
-          </View>
-        ))}
-      </ThemedView>
-    </ParallaxScrollView>
+
+      <CreateFolderDialog
+        visible={dialogs.folder}
+        onClose={() => toggle('folder')}
+        onCreate={async name => {
+          await fileSystemService.createFolder(currentPath, name);
+          await refresh();
+        }}
+      />
+
+      <CreateFileDialog
+        visible={dialogs.file}
+        onClose={() => toggle('file')}
+        onCreate={async (name, content) => {
+          await fileSystemService.createTextFile(currentPath, name, content);
+          await refresh();
+        }}
+      />
+
+      {activeEntry && 'path' in activeEntry && (
+        <TextFileViewer
+          visible={dialogs.viewer}
+          filePath={activeEntry.path}
+          fileName={activeEntry.name}
+          onClose={() => toggle('viewer')}
+        />
+      )}
+
+      {activeEntry && 'isDirectory' in activeEntry && (
+        <DeleteConfirmationDialog
+          visible={dialogs.delete}
+          itemName={activeEntry.name}
+          isDirectory={activeEntry.isDirectory}
+          onClose={() => toggle('delete')}
+          onDelete={async () => {
+            await fileSystemService.deleteEntry(activeEntry.uri);
+            await refresh();
+          }}
+        />
+      )}
+
+      <FileDetailsDialog
+        visible={dialogs.details}
+        filePath={activeEntry && 'uri' in activeEntry ? activeEntry.uri : ''}
+        onClose={() => toggle('details')}
+      />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  newsContainer: {
-    flexDirection: 'column',
-    gap: 16
-  },
-  newsItem: {
-    backgroundColor: 'rgba(220,220,222,0.65)',
-    borderRadius: 8,
-    flexDirection: "row",
-    padding: 10,
-    gap: 10
-  },
-  newsImage: {
-    height: 80,
-    borderRadius: 8,
-    marginBottom: 8,
-    objectFit: 'cover',
-    aspectRatio: 1
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
-  textContainer: {
-    flexWrap: "wrap",
-    maxWidth: "92%"
-  }
+  container: {flex: 1},
+  content: {flex: 1, padding: 12},
+  loading: {flex: 1, justifyContent: 'center', alignItems: 'center'},
+  error: {color: 'red', textAlign: 'center', marginTop: 20},
 });
